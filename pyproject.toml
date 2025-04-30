@@ -1,0 +1,26 @@
+[tool.poetry]
+name = "cda-api"
+version = "0.1.0"
+description = ""
+authors = ["tanner-coon-bh <tanner.coon@bluehalo.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+fastapi = {extras = ["standard"], version = "^0.115.6"}
+python-dotenv = "^1.0.1"
+sqlalchemy = "^2.0.36"
+pytest = "^8.3.2"
+psycopg2-binary = "^2.9.9"
+sqlparse = "^0.5.1"
+pyyaml = "^6.0.2"
+python-multipart = "^0.0.18"
+uvicorn = "^0.32.1"
+
+
+[tool.poetry.group.dev.dependencies]
+ipykernel = "^6.29.5"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
