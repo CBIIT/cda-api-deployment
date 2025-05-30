@@ -2,9 +2,10 @@ import time
 
 from sqlalchemy import distinct, func, union_all, union, SelectLabelStyle
 
-from cda_api import SystemNotFound, ColumnNotFound
+from cda_api import SystemNotFound, ColumnNotFound, InvalidFilterError
 from cda_api.db import DB_MAP
 from cda_api.db.schema import Base
+from psycopg2.errors import UndefinedFunction
 
 from .filter_builder import build_match_conditons
 from .query_utilities import (
@@ -47,13 +48,13 @@ def data_query(db, endpoint_tablename, request_body, limit, offset, log):
 
     # Get match_all and match_some filters
     match_all_conditions, match_some_conditions, filter_columnnames, filter_table_map = build_match_conditons(endpoint_tablename, request_body, log)
-
+    
     # normalize the add and exclude columns with the new filter columns as well as breaking out the table.* columns:
-    request_body = normalize_add_exclude_columns(request_body, 'data', filter_columnnames)
+    request_body = normalize_add_exclude_columns(request_body, 'data', filter_columnnames, log)
 
     # Build the preselect query
     filter_preselect_query, endpoint_id_alias = build_filter_preselect(
-        db, endpoint_tablename, match_all_conditions, match_some_conditions
+        db, endpoint_tablename, match_all_conditions, match_some_conditions, log
     )
 
     # Build the select columns and joins to foreign column array preselects
@@ -61,21 +62,24 @@ def data_query(db, endpoint_tablename, request_body, limit, offset, log):
         db, endpoint_tablename, request_body, filter_preselect_query, filter_table_map, log
     )
     
+    log.debug(f"Constructing data query")
     query = db.query(*select_columns)
     query = query.filter(endpoint_id_alias.in_(filter_preselect_query))
     # Add joins to foreign table preselects
     if foreign_joins:
+        log.debug(f"Adding joins")
         for foreign_join in foreign_joins:
-            print(foreign_join)
             query = query.join(**foreign_join, isouter=True)
     # query = add_hanging_table_joins(endpoint_tablename, select_columns, query)
     # Optimize Count query by only counting the id_alias column based on the preselect filter
+    log.debug(f"Constructing count query")
     count_subquery = (
         db.query(endpoint_id_alias).filter(endpoint_id_alias.in_(filter_preselect_query)).subquery("rows_to_count")
     )
     count_query = db.query(func.count()).select_from(count_subquery)
 
     subquery = query.subquery("json_result")
+    log.debug("Running Query")
     query = db.query(func.row_to_json(subquery.table_valued()))
     log.debug(f'Query:\n{"-"*100}\n{query_to_string(query, indented = True)}\n{"-"*100}')
 
@@ -120,7 +124,7 @@ def summary_query(db, endpoint_tablename, request_body, log):
     match_all_conditions, match_some_conditions, filter_columnnames, filter_table_map  = build_match_conditons(endpoint_tablename, request_body, log)
 
     # normalize the add and exclude columns with the new filter columns as well as breaking out the table.* columns:
-    request_body = normalize_add_exclude_columns(request_body, 'summary', filter_columnnames)
+    request_body = normalize_add_exclude_columns(request_body, 'summary', filter_columnnames, log)
 
     # Build preselect query
     endpoint_columns = DB_MAP.get_uniquename_metadata_table_columns(endpoint_tablename)
@@ -164,6 +168,9 @@ def summary_query(db, endpoint_tablename, request_body, log):
         if not column_info.summary_returns:
             log.debug(f'Skipping column: {column_info.uniquename} because it is not supposed to be displayed')
             continue
+        elif column_info.uniquename in request_body.EXCLUDE_COLUMNS:
+            log.debug(f'Skipping column: {column_info.uniquename} because it is in the EXCLUDE_COLUMNS list')
+            continue
         if column_info.virtual_table == None:
             ## Get the preselect column
             preselect_column = get_cte_column(preselect_query, column_info.uniquename)
@@ -177,9 +184,9 @@ def summary_query(db, endpoint_tablename, request_body, log):
                         column_summary = categorical_summary(db, preselect_column)
                         summary_select_clause.append(column_summary.label(f'{column_info.uniquename}_summary'))
                     case _:
-                        log.warning(f'Unexpectedly skipping {column_info.column_name} for summary - column_type: {column_info.column_type}')
+                        log.warning(f'Unexpectedly skipping {column_info.uniquename} for summary - column_type: {column_info.column_type}')
                         pass
-        else:
+        elif column_info.uniquename not in request_body.ADD_COLUMNS:
             add_columns_selects, _ = get_foreign_array_summary_selects(db, endpoint_tablename, [column_info.uniquename], preselect_query, filter_table_map, log)
             for select in add_columns_selects:
                 summary_select_clause.append(db.query(select).label(select.name))
@@ -195,13 +202,11 @@ def summary_query(db, endpoint_tablename, request_body, log):
     summary_select_clause.append(data_source_count_select.label('data_source'))
 
     if request_body.ADD_COLUMNS != None:
-        print('hello')
-        add_columns_selects, entity_total_count_select = get_foreign_array_summary_selects(db, endpoint_tablename, request_body.ADD_COLUMNS, preselect_query, filter_table_map, log)
+        columns_to_add =  [columnname for columnname in request_body.ADD_COLUMNS if columnname not in request_body.EXCLUDE_COLUMNS]
+        add_columns_selects, entity_total_count_select = get_foreign_array_summary_selects(db, endpoint_tablename, columns_to_add, preselect_query, filter_table_map, log)
         for select in add_columns_selects:
             summary_select_clause.append(db.query(select).label(select.name))
-        print('hello')
         if not isinstance(entity_total_count_select, type(None)):
-            print('CHANGING??????')
             summary_select_clause[1] = entity_total_count_select
         
 
