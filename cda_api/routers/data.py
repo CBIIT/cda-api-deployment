@@ -2,10 +2,10 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from cda_api import EmptyQueryError, get_logger, get_query_id
-from cda_api.application_utilities import handle_router_errors
+from cda_api.application_functions import handle_router_errors
 from cda_api.db import get_db
 from cda_api.db.query_builders import data_query
-from cda_api.models import PagedResponseObj, DataRequestBody
+from cda_api.classes.models import PagedResponseObj, DataRequestBody
 
 # API router object. Defines /data endpoint options
 router = APIRouter(prefix="/data", tags=["data"])
@@ -42,7 +42,7 @@ def file_fetch_rows_endpoint(
 
     try:
         # Get paged query result
-        result = data_query(db, endpoint_tablename="file", request_body=request_body, limit=limit, offset=offset, log=log)
+        result = data_query(db, endpoint_table_name="file", request_body=request_body, limit=limit, offset=offset, log=log)
         if (offset != None) and (limit != None):
             if result["total_row_count"] > offset + limit:
                 next_url = request.url.components.geturl().replace(f"offset={offset}", f"offset={offset+limit}")
@@ -87,7 +87,7 @@ def subject_fetch_rows_endpoint(
 
     try:
         # Get paged query result
-        result = data_query(db, endpoint_tablename="subject", request_body=request_body, limit=limit, offset=offset, log=log)
+        result = data_query(db, endpoint_table_name="subject", request_body=request_body, limit=limit, offset=offset, log=log)
         if limit != None:
             if offset == None:
                 offset = 0
