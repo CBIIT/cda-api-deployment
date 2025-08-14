@@ -19,8 +19,7 @@ RUN apk add --update --no-cache python3=~${PYTHON_VERSION} py3-pip py3-setuptool
 RUN apk add gcc python3-dev musl-dev linux-headers
 
 # Install update for sqlite to address vulnerability scan
-RUN apk del --purge sqlite 
-RUN apk del --purge sqlite-libs
+RUN apk del sqlite 
 RUN apk add make
 RUN wget https://www.sqlite.org/2025/sqlite-autoconf-3500400.tar.gz
 RUN tar xvfz sqlite-autoconf-*.tar.gz
