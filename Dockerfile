@@ -13,10 +13,24 @@ ENV PYTHONUNBUFFERED=1
 
 # Install Python
 ARG PYTHON_VERSION="3.12"
-RUN apk add --update --no-cache python3=~${PYTHON_VERSION} py3-pip py3-setuptools pipx
+RUN apk add --update --no-cache python3=~${PYTHON_VERSION} py3-pip pipx
 
 # Install prereqs for python packages
 RUN apk add gcc python3-dev musl-dev linux-headers
+
+# Manually force upgrade of setuptools
+RUN python -m pip install --upgrade "setuptools>=78.1.1" --break-system-packages
+
+# Install update for sqlite to address vulnerability scan
+RUN apk del sqlite 
+RUN apk add make
+RUN wget https://www.sqlite.org/2025/sqlite-autoconf-3500400.tar.gz
+RUN tar xvfz sqlite-autoconf-*.tar.gz
+WORKDIR /sqlite-autoconf-3500400
+RUN sh ./configure --prefix=/usr/local
+RUN make install
+RUN export PATH="/usr/local/bin:$PATH"
+WORKDIR /
 
 # Create a non-privileged user that the app will run under.
 # See https://docs.docker.com/go/dockerfile-user-best-practices/
