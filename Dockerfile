@@ -13,13 +13,10 @@ ENV PYTHONUNBUFFERED=1
 
 # Install Python
 ARG PYTHON_VERSION="3.12"
-RUN apk add --update --no-cache python3=~${PYTHON_VERSION} py3-pip pipx
+RUN apk add --update --no-cache python3=~${PYTHON_VERSION} py3-pip py3-setuptools pipx
 
 # Install prereqs for python packages
 RUN apk add gcc python3-dev musl-dev linux-headers
-
-# Manually force upgrade of setuptools
-RUN python -m pip install --upgrade "setuptools>=78.1.1" --break-system-packages
 
 # Install update for sqlite to address vulnerability scan
 RUN apk del sqlite 
@@ -31,6 +28,9 @@ RUN sh ./configure --prefix=/usr/local
 RUN make install
 RUN export PATH="/usr/local/bin:$PATH"
 WORKDIR /
+
+# Updating expat to address vulneratbilty scan
+RUN apk update && apk upgrade expat
 
 # Create a non-privileged user that the app will run under.
 # See https://docs.docker.com/go/dockerfile-user-best-practices/
