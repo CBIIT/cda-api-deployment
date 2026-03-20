@@ -1,8 +1,9 @@
 from cda_api.db.query_functions import build_foreign_preselect
 from .models import DataRequestBody
 from .DatabaseInfo import DatabaseInfo
-from .shared_class_functions import get_filter_infos, get_table_column_and_filter_map, get_filtered_preselect
+from .shared_class_functions import construct_search_filter_info, construct_filter_infos, get_table_column_and_filter_map, get_filtered_preselect
 from sqlalchemy import func, Label
+from cda_api.db.query_functions import get_selectable_db_column_and_possible_join
 
 class DataQuery:
     def __init__(self, db, db_info: DatabaseInfo, endpoint_table_name, request_body: DataRequestBody, log):
@@ -17,7 +18,8 @@ class DataQuery:
         self.endpoint_alias = self.endpoint_table_info.primary_key_column_info
 
         # Construct filter preselect
-        self.filter_infos = get_filter_infos(self)
+        self.search_filter_info = construct_search_filter_info(self)
+        self.filter_infos = construct_filter_infos(self)
         self.table_column_and_filter_map = get_table_column_and_filter_map(self, 'data')
         self.filtered_preselect, self.filtered_preselect_cte_query_map, self.filtered_preselect_column_map = get_filtered_preselect(self)
 
@@ -42,6 +44,7 @@ class DataQuery:
         repr_components = [
             f'DataQuery({self.log.extra['id']})',
             f'Endpoint: {self.endpoint_table_info}', 
+            f'SEARCH_STRING Filters:\n{self.search_filter_info}',
             f'MATCH_ALL Filters:\n{self.get_filter_infos('match_all')}',
             f'MATCH_SOME Filters:\n{self.get_filter_infos('match_some')}',
             f'Table Column and Filter Map:',
@@ -69,16 +72,24 @@ class DataQuery:
             select_columns = []
             select_joins = []
 
+            virtual_table_column_infos = table_info.virtual_column_infos
+
             # Add endpoint table select columns:
             if table_info == self.endpoint_table_info:
                 virtual_column_map = {}
-                table_virtual_column_infos = table_info.virtual_column_infos
-                local_select_columns = [column_info.labeled_db_column for column_info in column_infos if column_info not in table_virtual_column_infos]
+                local_select_columns = []
+                for column_info in column_infos:
+                    if column_info in virtual_table_column_infos:
+                        continue
+                    db_column, join = get_selectable_db_column_and_possible_join(column_info) 
+                    local_select_columns.append(db_column)
+                    if join:
+                        select_joins.append(join)
                 self.select_map[table_info][table_info.name] = local_select_columns
 
                 # Need to build mapping of virtual_tables to their respective columns
                 for column_info in column_infos:
-                    if column_info not in table_virtual_column_infos:
+                    if column_info not in virtual_table_column_infos:
                         continue
                     virtual_table_info = column_info.parent_table_info
                     if virtual_table_info not in virtual_column_map.keys():
@@ -114,8 +125,10 @@ class DataQuery:
                 select_columns.extend(foreign_select_columns)
                 select_joins.extend(foreign_select_joins)
             
+
             # Add the select columns where they belong in the select_map
             for select_column in select_columns:
+                
                 if isinstance(select_column, Label):
                     preselect_name = select_column.element.table.name
                 else:
@@ -149,8 +162,8 @@ class DataQuery:
 
     def get_query(self):
         query = self.db.query(*self.select_columns)
-        if not self.select_map[self.endpoint_table_info]:
-            query = query.select_from(self.endpoint_table_info.db_table)
+        # if not self.select_map[self.endpoint_table_info]:
+        query = query.select_from(self.endpoint_table_info.db_table)
         query = query.filter(self.endpoint_alias.db_column.in_(self.filtered_preselect_cte_query_map[self.endpoint_table_info]))
         for join in self.select_joins:
             query = query.join(**join, isouter=True)
