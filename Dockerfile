@@ -22,18 +22,18 @@ RUN apk add gcc python3-dev musl-dev linux-headers
 RUN python -m pip install --upgrade "setuptools>=78.1.1" --break-system-packages
 
 # Install update for sqlite to address vulnerability scan
-RUN apk del sqlite 
-RUN apk add make
-RUN wget https://www.sqlite.org/2025/sqlite-autoconf-3500400.tar.gz
-RUN tar xvfz sqlite-autoconf-*.tar.gz
-WORKDIR /sqlite-autoconf-3500400
-RUN sh ./configure --prefix=/usr/local
-RUN make install
-RUN export PATH="/usr/local/bin:$PATH"
-WORKDIR /
+# RUN apk del sqlite 
+# RUN apk add make
+# RUN wget https://www.sqlite.org/2025/sqlite-autoconf-3500400.tar.gz
+# RUN tar xvfz sqlite-autoconf-*.tar.gz
+# WORKDIR /sqlite-autoconf-3500400
+# RUN sh ./configure --prefix=/usr/local
+# RUN make install
+# RUN export PATH="/usr/local/bin:$PATH"
+# WORKDIR /
 
-# Updating expat to address vulneratbilty scan
-RUN apk update && apk upgrade expat
+# Updating zlib to address vulneratbilty scan
+RUN apk update && apk upgrade zlib
 
 # Create a non-privileged user that the app will run under.
 # See https://docs.docker.com/go/dockerfile-user-best-practices/
