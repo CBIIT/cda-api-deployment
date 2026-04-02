@@ -47,6 +47,10 @@ def unique_column_array_agg(column):
 def list_to_tsquery(search_term_list):
     search_string = ' & '.join(search_term_list)
     return func.plainto_tsquery('english', search_string)
+
+def validate_tsquery(db, ts_query):
+    return bool(db.query(ts_query).scalar())
+
     
     
 def apply_match_all_and_some_filters(query, match_all_db_filters, match_some_db_filters):
@@ -91,7 +95,8 @@ def build_virtual_foreign_arrays(db,foreign_table_info, virtual_table_info, virt
         .filter(relating_column.in_(filtered_preselect))
     )
     for select_join in select_joins:
-        virtual_preselect = virtual_preselect.join(**select_join, isouter=True)
+        select_join['isouter'] = True
+        virtual_preselect = virtual_preselect.join(**select_join)
     virtual_preselect = virtual_preselect.group_by(relating_column)
     virtual_preselect_cte = virtual_preselect.cte(cte_name)
     preselect_onclause = get_cte_column(virtual_preselect_cte, relating_column.name) == virtual_table_relationship.local_column_info.db_column
