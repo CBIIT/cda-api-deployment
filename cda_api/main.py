@@ -11,14 +11,13 @@ from cda_api.classes.models import ClientError, InternalError
 app = FastAPI()
 
 origins = [
-    "https://cda*.org.readthedocs.build/",
+    "https://cda*.org.readthedocs.build",
     "https://cda.readthedocs.io"
 ]
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
-    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
