@@ -13,7 +13,8 @@ ENV PYTHONUNBUFFERED=1
 
 # Install Python
 ARG PYTHON_VERSION="3.12"
-RUN apk add --update --no-cache python3=~${PYTHON_VERSION} py3-pip py3-setuptools pipx
+RUN apk update
+RUN apk add --update --no-cache py3-pip py3-setuptools pipx
 
 # Install prereqs for python packages
 RUN apk add gcc python3-dev musl-dev linux-headers
