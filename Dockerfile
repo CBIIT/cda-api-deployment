@@ -38,6 +38,9 @@ RUN python -m pip install --upgrade "jaraco.context>=6.1.0" --break-system-packa
 # Updating zlib to address vulneratbilty scan
 RUN apk update && apk upgrade zlib
 
+# Updating libssl3 to address vulneratbilty scan
+RUN apk update && apk upgrade libssl3
+
 # Create a non-privileged user that the app will run under.
 # See https://docs.docker.com/go/dockerfile-user-best-practices/
 ARG UID=10001
