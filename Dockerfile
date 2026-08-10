@@ -21,9 +21,10 @@ RUN apk add gcc python3-dev musl-dev linux-headers
 
 # Manually force upgrade of setuptools
 RUN python -m pip install --upgrade pip --break-system-packages
-RUN python -m pip install --upgrade "setuptools>=82.0.1" --break-system-packages
+RUN python -m pip install --upgrade "setuptools>=83.0.0" --break-system-packages
 RUN python -m pip install --upgrade "wheel>=0.46.2" --break-system-packages 
 RUN python -m pip install --upgrade "jaraco.context>=6.1.0" --break-system-packages 
+RUN python -m pip install --upgrade "msgpack>=1.2.1" --break-system-packages 
 
 # Install update for sqlite to address vulnerability scan
 # RUN apk del sqlite 
