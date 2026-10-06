@@ -212,6 +212,7 @@ def column_values_query(db, column_name, data_source_string, limit, offset, log,
         result = [map_controlled_terms(row[0], {column_name: {'data_type': 'single', 'path': [column_name]}}, include_connected_columns) for row in result]
     else:
         result = [row for (row,) in result]
+
     # Execute total_count query
     total_count = total_count_query.scalar()
 
